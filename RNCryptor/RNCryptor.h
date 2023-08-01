@@ -32,6 +32,13 @@
 extern NSString *const kRNCryptorErrorDomain;
 extern const uint8_t kRNCryptorFileVersion;
 
+enum _RNCryptorHashDigest
+{
+  kRNCryptorHashDigestMD5 = 0,
+  kRNCryptorHashDigestSHA256 = 2
+};
+typedef uint8_t RNCryptorHashDigest;
+
 typedef struct _RNCryptorKeyDerivationSettings
 {
   size_t keySize;
@@ -40,6 +47,9 @@ typedef struct _RNCryptorKeyDerivationSettings
   /* CCPseudoRandomAlgorithm */ uint32_t PRF;
   uint rounds;
   BOOL hasV2Password; // See Issue #77. V2 incorrectly handled multi-byte characters.
+  BOOL usePBKDF2;
+  RNCryptorHashDigest hashDigest;
+  
 } RNCryptorKeyDerivationSettings;
 
 typedef struct _RNCryptorSettings
