@@ -165,24 +165,26 @@ static const NSUInteger kPreambleSize = 2;
 - (void)decryptData:(NSData *)data
 {
   dispatch_async(self.queue, ^{
-    if (self.hasHMAC) {
-      CCHmacUpdate(&self->_HMACContext, data.bytes, data.length);
+    @autoreleasepool {
+      if (self.hasHMAC) {
+        CCHmacUpdate(&self->_HMACContext, data.bytes, data.length);
+      }
+      
+      NSError *error = nil;
+      NSData *decryptedData = [self.engine addData:data error:&error];
+      
+      if (!decryptedData) {
+        [self cleanupAndNotifyWithError:error];
+        return;
+      }
+      
+      [self.outData appendData:decryptedData];
+      
+      dispatch_sync(self.responseQueue, ^{
+        self.handler(self, self.outData);
+      });
+      [self.outData setLength:0];
     }
-
-    NSError *error = nil;
-    NSData *decryptedData = [self.engine addData:data error:&error];
-
-    if (!decryptedData) {
-      [self cleanupAndNotifyWithError:error];
-      return;
-    }
-
-    [self.outData appendData:decryptedData];
-
-    dispatch_sync(self.responseQueue, ^{
-      self.handler(self, self.outData);
-    });
-    [self.outData setLength:0];
   });
 }
 

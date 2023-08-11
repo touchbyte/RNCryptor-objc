@@ -195,30 +195,32 @@
   }
 
   dispatch_async(self.queue, ^{
-    if (!self.haveWrittenHeader) {
-      NSData *header = [self header];
-      [self.outData setData:header];
-      if (self.hasHMAC) {
-        CCHmacUpdate(&self->_HMACContext, [header bytes], [header length]);
+    @autoreleasepool {
+      if (!self.haveWrittenHeader) {
+        NSData *header = [self header];
+        [self.outData setData:header];
+        if (self.hasHMAC) {
+          CCHmacUpdate(&self->_HMACContext, [header bytes], [header length]);
+        }
+        self.haveWrittenHeader = YES;
       }
-      self.haveWrittenHeader = YES;
+      
+      NSError *error = nil;
+      NSData *encryptedData = [self.engine addData:data error:&error];
+      if (!encryptedData) {
+        [self cleanupAndNotifyWithError:error];
+      }
+      if (self.hasHMAC) {
+        CCHmacUpdate(&self->_HMACContext, encryptedData.bytes, encryptedData.length);
+      }
+      
+      [self.outData appendData:encryptedData];
+      
+      dispatch_sync(self.responseQueue, ^{
+        self.handler(self, self.outData);
+      });
+      [self.outData setLength:0];
     }
-
-    NSError *error = nil;
-    NSData *encryptedData = [self.engine addData:data error:&error];
-    if (!encryptedData) {
-      [self cleanupAndNotifyWithError:error];
-    }
-    if (self.hasHMAC) {
-      CCHmacUpdate(&self->_HMACContext, encryptedData.bytes, encryptedData.length);
-    }
-
-    [self.outData appendData:encryptedData];
-
-    dispatch_sync(self.responseQueue, ^{
-      self.handler(self, self.outData);
-    });
-    [self.outData setLength:0];
   });
 }
 
